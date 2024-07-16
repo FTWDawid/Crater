@@ -33,8 +33,8 @@ func CaptchaGenerator(c *gin.Context) {
 	_ = png.Encode(c.Writer, captchaImage)
 }
 
-func GeneratorsRoute(ginInstance *gin.Engine) {
-	generator := ginInstance.Group("/v1/generators")
+func GeneratorsRoute(ginInstance *gin.Engine, limiter gin.HandlerFunc) {
+	generator := ginInstance.Group("/v1/generators", limiter)
 
 	generator.GET("/captcha", CaptchaGenerator)
 }
