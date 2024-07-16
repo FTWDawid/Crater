@@ -13,7 +13,7 @@ func main() {
 
 	ratelimitStore := ratelimit.InMemoryStore(&ratelimit.InMemoryOptions{
 		Rate:  time.Minute,
-		Limit: 50,
+		Limit: 90,
 	})
 
 	ratelimitMiddleware := ratelimit.RateLimiter(ratelimitStore, &ratelimit.Options{
