@@ -1,40 +1,41 @@
 package routes
 
 import (
+	"bytes"
+	"crater/utils"
+	"encoding/base64"
+	"image/color"
 	"image/png"
-	"strconv"
 
-	"github.com/dchest/captcha"
 	"github.com/gin-gonic/gin"
 )
 
-func CaptchaGenerator(c *gin.Context) {
-	height := captcha.StdHeight
-	width := captcha.StdWidth
+func HandleCaptchaRequest(ctx *gin.Context, captchaGen *utils.CaptchaGenerator) {
+	ctx.Header("Content-Type", "application/json")
 
-	if queryHeight := c.Query("height"); queryHeight != "" {
-		if h, err := strconv.Atoi(queryHeight); err == nil && h > 0 {
-			height = h
-		}
+	randomCode := utils.GenerateRandomCode()
+
+	img := captchaGen.GenerateImage(randomCode)
+	var buf bytes.Buffer
+	err := png.Encode(&buf, img)
+	if err != nil {
+		ctx.JSON(500, gin.H{"error": "Failed to encode image"})
+		return
 	}
 
-	if queryWidth := c.Query("width"); queryWidth != "" {
-		if w, err := strconv.Atoi(queryWidth); err == nil && w > 0 {
-			width = w
-		}
-	}
-
-	id := captcha.New()
-
-	captchaDigits := captcha.RandomDigits(6)
-	captchaImage := captcha.NewImage(id, captchaDigits, width, height)
-
-	c.Header("Content-Type", "image/png")
-	_ = png.Encode(c.Writer, captchaImage)
+	imageBase64 := base64.StdEncoding.EncodeToString(buf.Bytes())
+	ctx.JSON(200, gin.H{
+		"code":  randomCode,
+		"image": imageBase64,
+	})
 }
 
-func GeneratorsRoute(ginInstance *gin.Engine, limiter gin.HandlerFunc) {
-	generator := ginInstance.Group("/v1/generators", limiter)
+func RegisterGeneratorsRoutes(router *gin.Engine) {
+	generatorGroup := router.Group("/v1/generators")
 
-	generator.GET("/captcha", CaptchaGenerator)
+	captchaGen, error := utils.NewCaptchaGenerator("assets/poppins_bold.ttf", 64, 360, 180, color.Transparent)
+	println(error)
+	generatorGroup.GET("/captcha", func(ctx *gin.Context) {
+		HandleCaptchaRequest(ctx, captchaGen)
+	})
 }

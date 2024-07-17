@@ -9,41 +9,39 @@ import (
 )
 
 func main() {
-	r := gin.Default()
+	router := gin.Default()
 
-	ratelimitStore := ratelimit.InMemoryStore(&ratelimit.InMemoryOptions{
+	router.Use(ratelimit.RateLimiter(ratelimit.InMemoryStore(&ratelimit.InMemoryOptions{
 		Rate:  time.Minute,
 		Limit: 90,
-	})
-
-	ratelimitMiddleware := ratelimit.RateLimiter(ratelimitStore, &ratelimit.Options{
+	}), &ratelimit.Options{
 		ErrorHandler: func(c *gin.Context, info ratelimit.Info) {
 			c.JSON(429, gin.H{
 				"status":  429,
 				"message": "Too many requests",
-				"retryIn": info.ResetTime.Sub(time.Now()).Round(time.Second).String(),
+				"retryIn": time.Until(info.ResetTime).Round(time.Second),
 			})
 		},
 		KeyFunc: func(c *gin.Context) string {
 			return c.ClientIP()
 		},
-	})
+	}))
 
-	routes.GeneratorsRoute(r, ratelimitMiddleware)
+	routes.RegisterGeneratorsRoutes(router)
 
-	r.NoRoute(func(c *gin.Context) {
+	router.NoRoute(func(c *gin.Context) {
 		c.JSON(404, gin.H{
 			"status":  404,
 			"message": "Page not found",
 		})
 	})
 
-	r.NoMethod(func(c *gin.Context) {
+	router.NoMethod(func(c *gin.Context) {
 		c.JSON(405, gin.H{
 			"status":  405,
 			"message": "Method not allowed",
 		})
 	})
 
-	r.Run(":4496")
+	router.Run(":4496")
 }
